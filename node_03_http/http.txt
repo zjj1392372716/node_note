@@ -1,0 +1,261 @@
+node.js的目的是为了让jsvascript也能web写服务器程序。
+理解web服务器的原理，首先要对HTTP有所了解：
+一、HTTP协议简介
+	web应用中，服务器把网页传给浏览器，实际上就是吧网页代码传给浏览器，让其执行显示出来，而服务器和浏览器之间就是通过
+	http传输协议来辅助进行的。
+	
+1、Request Headers:
+	GET / HTTP/1.1
+	GET表示一个读取请求，将从服务器获得网页数据，/表示URL的路径，URL总是以/开头，/就表示首页，最后的HTTP/1.1指示采用的HTTP协议版本是1.1。
+	目前HTTP协议的版本就是1.1，但是大部分服务器也支持1.0版本，
+	主要区别在于1.1版本允许多个HTTP请求复用一个TCP连接，以加快传输速度。
+	
+
+	Host: www.sina.com.cn
+	表示请求的域名是www.sina.com.cn。
+	如果一台服务器有多个网站，服务器就需要通过Host来区分浏览器请求的是哪个网站。
+	
+	Content-Type:text/html
+	Content-Type指示响应的内容，这里是text/html表示HTML网页。
+	请注意，浏览器就是依靠Content-Type来判断响应的内容是网页还是图片，是视频还是音乐。浏览器并不靠URL来判断响应的内容，所以，
+	即使URL是http://example.com/abc.jpg，它也不一定就是图片。
+	
+	
+2、http请求的流程：
+	1、浏览器向服务器发送请求，请求包括
+	（1）、GET或POST，get请求资源，POST会附带数据
+	（2）、路径/full/url/path；
+	（3）、域名：Host： www.sina.com.cn
+	（4）、Header:
+				如果是post则会包括一个body，这个body里面包含用户的数据（要发送的数据）
+	2、服务器向浏览器返回响应，响应包括：
+	（1）、响应代码：200 ok 3XX表示重定向   4XX表示客户端发送的请求有问题， 5XX表示服务器处理的问题
+	（2）、响应类型：Content-Type:text/html
+	（3）、header:
+				通常响应后会包含一个body，这个body里面有网页的源代码（服务器返回的数据）
+	
+	3、如果浏览器还需要其他的资源就重复1、2步骤，
+	
+	4、总结：Web采用的HTTP协议采用了非常简单的请求-响应模式，从而大大简化了开发。当我们编写一个页面时，我们只需要在HTTP请求中把HTML发送出去，不需要考虑如何附带图片、视频等，浏览器如果需要请求图片和视频，它会发送另一个HTTP请求，因此，一个HTTP请求只处理一个资源。
+
+	HTTP协议同时具备极强的扩展性，虽然浏览器请求的是http://www.sina.com.cn/的首页，但是新浪在HTML中可以链入其他服务器的资源，
+	比如<img src="http://i1.sinaimg.cn/home/2013/1008/U8455P30DT20131008135420.png">，
+	从而将请求压力分散到各个服务器上，并且，一个站点可以链接到其他站点，无数个站点互相链接起来，就形成了World Wide Web，简称WWW。
+		
+3、HTTP格式：
+	每个HTTP请求和响应都遵循相同的格式，一个HTTP包含Header和Body两部分，其中Body是可选的。
+
+	HTTP协议是一种文本协议，所以，它的格式也非常简单。HTTP GET请求的格式：
+	
+	GET /path HTTP/1.1
+	Header1: Value1
+	Header2: Value2
+	Header3: Value3
+	
+	POST /path HTTP/1.1
+	Header1: Value1
+	Header2: Value2
+	Header3: Value3
+	
+	body data goes here...
+	
+	Body的数据类型由Content-Type头来确定，如果是网页，Body就是文本，如果是图片，Body就是图片的二进制数据。
+
+	当存在Content-Encoding时，Body数据是被压缩的，最常见的压缩方式是gzip，所以，看到Content-Encoding: gzip时，
+	需要将Body数据先解压缩，才能得到真正的数据。压缩的目的在于减少Body的大小，加快网络传输。
+	
+	
+二、http服务器
+	要开发HTTP服务器程序，从头处理TCP连接，解析HTTP是不现实的。这些工作实际上已经由Node.js自带的http模块完成了。
+	应用程序并不直接和HTTP协议打交道，而是操作http模块提供的request和response对象。
+	
+
+	'use strict';
+
+	// 导入http模块:
+	var http = require('http');
+	
+	// 创建http server，并传入回调函数:
+	var server = http.createServer(function (request, response) {
+	    // 回调函数接收request和response对象,
+	    // 获得HTTP请求的method和url:
+	    console.log(request.method + ': ' + request.url);
+	    // 将HTTP响应200写入response, 同时设置Content-Type: text/html:
+	    response.writeHead(200, {'Content-Type': 'text/html'});
+	    // 将HTTP响应的HTML内容写入response:
+	    response.end('<h1>Hello world!</h1>');
+	});
+	
+	// 让服务器监听8080端口:
+	server.listen(8080);
+	
+	console.log('Server is running at http://127.0.0.1:8080/');
+	
+	在命令提示符下运行该程序，可以看到以下输出：
+
+	$ node hello.js 
+	Server is running at http://127.0.0.1:8080/
+	
+	
+	
+	不要关闭命令提示符，直接打开浏览器输入http://localhost:8080，即可看到服务器响应的内容：
+	
+	同时，在命令提示符窗口，可以看到程序打印的请求信息：
+	GET: /
+	GET: /favicon.ico
+	这就是我们编写的第一个HTTP服务器程序！
+	
+三、文件服务器
+	我们可以设定一个目录，然后让Web程序变成一个文件服务器。要实现这一点，我们只需要解析request.url中的路径，然后在本地找到对应的文件，把文件内容发送出去就可以了。
+
+	解析URL需要用到Node.js提供的url模块，它使用起来非常简单，通过parse()将一个字符串解析为一个Url对象：
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
